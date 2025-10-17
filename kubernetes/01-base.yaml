@@ -1,0 +1,80 @@
+# Namespace for the application
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: unicorn-app
+  labels:
+    name: unicorn-app
+---
+# Service Account with IAM role annotation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: unicorn-service
+  namespace: unicorn-app
+  annotations:
+    eks.amazonaws.com/role-arn: ${UNICORN_APP_ROLE_ARN}
+---
+# ConfigMap for application configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: unicorn-config
+  namespace: unicorn-app
+data:
+  APP_CONFIG_APPLICATION: "${APPCONFIG_APPLICATION_ID}"
+  APP_CONFIG_ENVIRONMENT: "${APPCONFIG_ENVIRONMENT_ID}" 
+  APP_CONFIG_CONFIGURATION: "${APPCONFIG_CONFIGURATION_PROFILE_ID}"
+  AWS_REGION: "${AWS_REGION}"
+---
+# Secret for database credentials reference
+apiVersion: v1
+kind: Secret
+metadata:
+  name: unicorn-db-secret
+  namespace: unicorn-app
+type: Opaque
+data:
+  secret-arn: ${DB_SECRET_ARN_B64}
+---
+# PersistentVolume for EFS
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: efs-pv
+spec:
+  capacity:
+    storage: 100Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: efs-sc
+  csi:
+    driver: efs.csi.aws.com
+    volumeHandle: ${EFS_ID}::${EFS_ACCESS_POINT_ID}
+---
+# PersistentVolumeClaim for EFS
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: efs-claim
+  namespace: unicorn-app
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs-sc
+  resources:
+    requests:
+      storage: 100Gi
+---
+# StorageClass for EFS
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-sc
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: ${EFS_ID}
+  directoryPerms: "0755"
