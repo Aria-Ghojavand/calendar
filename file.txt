@@ -1,0 +1,57 @@
+VPC: 10.0.0.0/16
+Public Subnets: 10.0.1.0/24, 10.0.2.0/24
+Private Subnets: 10.0.10.0/24, 10.0.11.0/24
+Internet Gateway
+NAT Gateways (2 تا برای HA)
+Route Tables و associations
+2. Security Groups
+EKS Cluster SG: Port 443 از internet
+EKS Nodes SG: Internal communication
+RDS SG: Port 5432 از EKS nodes
+ElastiCache SG: Port 6379 از EKS nodes
+EFS SG: Port 2049 از EKS nodes
+🚀 مرحله دوم - خدمات اصلی (Phase II)
+3. IAM Roles (قبل از EKS)
+استفاده از رول‌های موجود: EKSClusterRole, EKSNodeRole
+ایجاد رول‌های جدید:
+aws-load-balancer-controller
+cluster-autoscaler
+efs-csi-driver
+unicorn-app
+4. EKS Cluster
+Cluster name: unicorn-eks-cluster
+Version: 1.28
+Subnets: همه subnets (public + private)
+Endpoint access: Public + Private
+Logging: API, Audit, Authenticator, ControllerManager, Scheduler
+5. EKS Node Group
+Instance type: t3.medium
+Scaling: Min=1, Desired=2, Max=10
+Subnets: فقط private subnets
+6. RDS PostgreSQL
+Engine: PostgreSQL 15.4
+Instance: db.t3.medium
+Database name: unicorndb
+Username: unicorn
+Security group: RDS SG که ساختی
+Subnet group: از private subnets
+7. ElastiCache Redis
+Engine: Redis 7.x
+Node type: cache.t3.medium
+Number of nodes: 2
+Multi-AZ: Enable
+Security group: ElastiCache SG
+8. EFS File System
+Performance mode: General Purpose
+Throughput mode: Provisioned (100 MiBps)
+Mount targets: در هر private subnet
+Access point: /app-cache path
+9. ECR Repository
+Repository name: unicorn-service
+Image scanning: Enable
+Lifecycle policy: Keep 10 images
+10. AWS AppConfig
+Application: unicorn-service
+Environment: production
+Configuration profile: JSON format
+Hosted configuration: با اطلاعات DB و Redis
